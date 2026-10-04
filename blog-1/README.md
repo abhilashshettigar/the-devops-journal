@@ -3,8 +3,8 @@
 A hands-on example of deploying the **LGTM** stack — **L**oki (logs), **G**rafana
 (dashboards), **T**empo (traces) — plus **Argo CD** itself, using a pure
 **GitOps** workflow. Every component is wrapped in a local Helm chart and
-declared as an Argo CD `Application`, so the cluster state is reconciled
-directly from this Git repository.
+generated as an Argo CD `Application` by a single `ApplicationSet`, so the
+cluster state is reconciled directly from this Git repository.
 
 ## Architecture
 
@@ -13,15 +13,21 @@ directly from this Git repository.
                     │                 monitoring                   │
                     │                                              │
    Git push ──►  Argo CD ──sync──►  Grafana  ◄──datasources──┐    │
-                (argocd-apps)       Loki (logs)  ────────────┘    │
+                (ApplicationSet)    Loki (logs)  ────────────┘    │
                                      Tempo (traces)                │
                     └─────────────────────────────────────────────┘
 ```
 
-- **app-of-apps**: one root `Application` (`argocd-apps`) watches
-  `blog-1/argocd-apps/apps/` and creates one child `Application` per component.
+- **app-of-apps**: the root `Application` (`argocd-apps`) watches
+  `blog-1/argocd-apps/apps/`, which holds the `ApplicationSet` and the
+  `observability` `AppProject`.
+- **ApplicationSet**: a single `ApplicationSet` generates one child
+  `Application` per component (`argocd`, `grafana`, `loki`, `tempo`) from a list
+  generator.
 - Each child `Application` points at the local wrapper chart
   (`blog-1/<component>/`) in this repo on branch `main`.
+- **AppProject**: the `observability` project scopes the child Applications to
+  this repository and the `monitoring` namespace.
 - Sync is **automated** with `prune` + `selfHeal`, so drift is corrected and
   deleted manifests are cleaned up.
 - Everything lands in a single `monitoring` namespace.
@@ -37,13 +43,11 @@ blog-1/
 └── argocd-apps/        # kustomize root that declares the GitOps applications
     ├── kustomization.yaml   # bootstrap bundle: namespace + root app
     ├── namespace.yaml       # monitoring namespace
-    ├── root-app.yaml        # app-of-apps root Application
+    ├── root-app.yaml        # app-of-apps root Application (project: default)
     └── apps/
         ├── kustomization.yaml
-        ├── grafana-app.yaml
-        ├── loki-app.yaml
-        ├── tempo-app.yaml
-        └── argocd-app.yaml
+        ├── project.yaml         # AppProject "observability"
+        └── applicationset.yaml  # ApplicationSet -> argocd/grafana/loki/tempo
 ```
 
 ## Prerequisites
@@ -73,8 +77,37 @@ helm install argocd argo/argo-cd -n monitoring -f blog-1/argocd/values.yaml
 kubectl apply -k blog-1/argocd-apps
 ```
 
-The root `Application` then creates the Grafana, Loki, Tempo, and Argo CD
-child Applications, and Argo CD reconciles the whole stack from Git.
+The root `Application` applies the `observability` `AppProject` and the
+`ApplicationSet`. The ApplicationSet then generates the Grafana, Loki, Tempo,
+and Argo CD child Applications, and Argo CD reconciles the whole stack from Git.
+
+### Why `root-app.yaml`?
+
+Argo CD bootstraps from a single `Application`, not an `ApplicationSet`: the
+ApplicationSet controller creates child `Application`s, but something still has
+to install the `ApplicationSet` and `AppProject` themselves. That is
+`root-app.yaml`.
+
+```
+root-app.yaml (Application, project: default)
+      │ watches blog-1/argocd-apps/apps/
+      ▼
+project.yaml + applicationset.yaml
+      │ ApplicationSet generates
+      ▼
+argocd / grafana / loki / tempo (Applications)
+      │ each syncs its wrapper chart
+      ▼
+Helm-rendered resources in the monitoring namespace
+```
+
+Keeping the root `Application` means the `ApplicationSet` and `AppProject` are
+themselves reconciled from Git: add or remove a component in the generator
+list, or change the project, and Argo CD applies it on the next sync — no
+kubectl. If you drop `root-app.yaml`, you would apply `project.yaml` and
+`applicationset.yaml` once with `kubectl apply`; the four child Applications
+stay fully GitOps-managed, but the `ApplicationSet`/`AppProject` themselves
+would only change when you re-apply them manually.
 
 ## Accessing the UIs
 
@@ -98,8 +131,9 @@ kubectl -n monitoring port-forward svc/tempo 3200:3200
 2. Commit and push to `main`.
 3. Argo CD detects the new revision and syncs automatically.
 
-To add a new component: add a wrapper chart, drop a new `Application` manifest
-in `blog-1/argocd-apps/apps/`, and push. The app-of-apps root picks it up.
+To add a new component: add a wrapper chart and append an element to the list
+generator in `blog-1/argocd-apps/apps/applicationset.yaml`, then push. The root
+Application syncs the ApplicationSet, which generates the new Application.
 
 ## Notes
 

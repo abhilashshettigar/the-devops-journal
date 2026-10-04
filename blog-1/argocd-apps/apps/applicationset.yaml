@@ -1,0 +1,51 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: observability
+  namespace: monitoring
+spec:
+  goTemplate: true
+  goTemplateOptions:
+    - missingkey=error
+  generators:
+    - list:
+        elements:
+          - name: argocd
+            path: blog-1/argocd
+            syncWave: "1"
+          - name: grafana
+            path: blog-1/grafana
+            syncWave: "2"
+          - name: loki
+            path: blog-1/loki
+            syncWave: "2"
+          - name: tempo
+            path: blog-1/tempo
+            syncWave: "2"
+  template:
+    metadata:
+      name: '{{ .name }}'
+      namespace: monitoring
+      annotations:
+        argocd.argoproj.io/sync-wave: '{{ .syncWave }}'
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: observability
+      source:
+        repoURL: https://github.com/abhilashshettigar/the-devops-journal.git
+        targetRevision: main
+        path: '{{ .path }}'
+        helm:
+          valueFiles:
+            - values.yaml
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: monitoring
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
