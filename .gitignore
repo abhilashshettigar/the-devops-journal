@@ -1,0 +1,57 @@
+# Secrets and credentials
+.env
+.env.*
+*.pem
+*.key
+*.crt
+*.p12
+credentials
+secrets.yaml
+secrets.yml
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+.terraformrc
+terraform.rc
+crash.log
+
+# Kubernetes
+kubeconfig
+.kube/
+*.kubeconfig
+
+# Ansible
+*.retry
+.vault_pass
+
+# Docker
+docker-compose.override.yml
+
+# Cloud provider state
+.aws/
+.azure/
+.gcloud/
+.gcp/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.envrc
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
