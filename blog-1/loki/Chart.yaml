@@ -1,0 +1,10 @@
+apiVersion: v2
+name: loki
+description: Loki single-binary deployment for logs
+type: application
+version: 0.1.0
+appVersion: "3.6.12"
+dependencies:
+  - name: loki
+    version: 7.3.0
+    repository: https://grafana.github.io/helm-charts

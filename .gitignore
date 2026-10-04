@@ -49,6 +49,9 @@ __pycache__/
 venv/
 .envrc
 
+# Helm chart dependencies (resolved from Chart.lock at sync time)
+blog-1/*/charts/
+
 # Editors and OS
 .DS_Store
 .idea/

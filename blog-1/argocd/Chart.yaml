@@ -1,0 +1,11 @@
+apiVersion: v2
+name: argocd
+description: Argo CD for GitOps continuous delivery
+type: application
+version: 0.1.0
+appVersion: "3.5.3"
+dependencies:
+  - name: argo-cd
+    version: 10.9.6
+    repository: https://argoproj.github.io/argo-helm
+    alias: argocd

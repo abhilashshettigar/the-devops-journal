@@ -1,0 +1,26 @@
+grafana:
+  adminUser: admin
+  adminPassword: admin
+  persistence:
+    enabled: false
+  service:
+    type: ClusterIP
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Loki
+          type: loki
+          uid: loki
+          url: http://loki.monitoring.svc.cluster.local:3100
+          access: proxy
+          isDefault: false
+        - name: Tempo
+          type: tempo
+          uid: tempo
+          url: http://tempo.monitoring.svc.cluster.local:3200
+          access: proxy
+          isDefault: false
+          jsonData:
+            tracesToLogsV2:
+              datasourceUid: loki
